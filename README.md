@@ -28,13 +28,12 @@ that is injected into a cross-compiled target binary.
 
 ## CI targets
 
-GitHub Actions builds three targets in parallel:
+GitHub Actions builds two Linux targets in parallel:
 
 | Target | Artifact | Base runtime |
 | --- | --- | --- |
 | `arm64` | `amo-nano-linux-arm64` | official Node.js `linux-arm64` |
-| `arm64-android` | `amo-nano-android-arm64` | Node.js cross-compiled with the Android NDK for `aarch64-linux-android` (API 24) |
 | `amd64` | `amo-nano-linux-amd64` | official Node.js `linux-x64` |
 
-When all three jobs succeed, a GitHub Release is created with all binaries
+When both jobs succeed, a GitHub Release is created with both binaries
 attached.
