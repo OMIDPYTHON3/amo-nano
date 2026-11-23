@@ -10,6 +10,7 @@ permissions:
 
 env:
   NODE_VERSION: 22.23.4
+  NODE_MIRROR_TAG: 22.23.4-39619033003
 
 jobs:
   arm64:
@@ -30,10 +31,9 @@ jobs:
           FILE="node-${NODE_VERSION}-linux-arm64"
           OUT="$RUNNER_TEMP/${FILE}.archive"
           for url in \
+            "https://github.com/actions/node-versions/releases/download/${NODE_MIRROR_TAG}/${FILE}.tar.gz" \
             "https://nodejs.org/dist/${NODE_VERSION}/${FILE}.tar.xz" \
-            "https://nodejs.org/download/release/${NODE_VERSION}/${FILE}.tar.xz" \
-            "https://nodejs.org/dist/${NODE_VERSION}/${FILE}.tar.gz" \
-            "https://nodejs.org/download/release/${NODE_VERSION}/${FILE}.tar.gz"; do
+            "https://nodejs.org/dist/${NODE_VERSION}/${FILE}.tar.gz"; do
             echo "Trying $url"
             if curl -fsSL --retry 2 --retry-all-errors "$url" -o "$OUT"; then
               echo "Downloaded from $url"
