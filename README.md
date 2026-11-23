@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="Screenshot_20261123_045830_Termux.jpg" width="48%">
+  <img src="Screenshot_20261123_045805_Termux.jpg" width="48%">
+</p>
+
+
 # amo-nano
 
 AMO is a self-contained professional terminal code editor for Termux/Android
