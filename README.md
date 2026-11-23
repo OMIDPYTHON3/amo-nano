@@ -11,6 +11,15 @@ and Linux. It is packaged as a [Node.js Single Executable Application](https://n
 (SEA): esbuild bundles `src/cli/index.js`, Node.js generates the SEA payload and
 `postject` injects it into a target Node.js binary.
 
+
+Features
+
+- Syntax highlighting
+- Intelligent syntax suggestions
+- Code completion
+- Real-time editing assistance
+
+- 
 ## Build locally
 
 ```bash
