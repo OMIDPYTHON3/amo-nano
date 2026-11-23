@@ -1,0 +1,15 @@
+# Dependencies and build output
+node_modules/
+.build/
+
+# Local/produced binaries (compiled by CI, not committed)
+amo
+amo-*
+*.7z
+
+# Logs and editor/temp files
+*.log
+.DS_Store
+a.py
+t.py
+t2.py

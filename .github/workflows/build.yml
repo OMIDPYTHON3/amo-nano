@@ -1,0 +1,168 @@
+name: Build amo-nano
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22.23.4
+  NDK_VERSION: r27c
+
+jobs:
+  arm64:
+    name: arm64 (Linux aarch64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Download linux-arm64 Node.js runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/node-arm64"
+          curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-arm64.tar.xz" \
+            -o "$RUNNER_TEMP/node-arm64.tar.xz"
+          tar -xJf "$RUNNER_TEMP/node-arm64.tar.xz" -C "$RUNNER_TEMP/node-arm64" --strip-components=1
+      - name: Build (esbuild + Node SEA + postject)
+        env:
+          AMO_NODE_BASE: ${{ runner.temp }}/node-arm64/bin/node
+          AMO_TARGET_ARCH: arm64
+        run: npm run build
+      - name: Verify binary architecture
+        run: |
+          file amo
+          file amo | grep -q 'ARM aarch64'
+      - name: Prepare artifact
+        run: cp amo amo-nano-linux-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: amo-nano-linux-arm64
+          path: amo-nano-linux-arm64
+          if-no-files-found: error
+
+  amd64:
+    name: amd64 (Linux x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          architecture: x64
+          cache: npm
+      - run: npm ci
+      - name: Build (esbuild + Node SEA + postject)
+        env:
+          AMO_TARGET_ARCH: amd64
+        run: npm run build
+      - name: Verify binary architecture
+        run: |
+          file amo
+          file amo | grep -q 'x86-64'
+      - name: Prepare artifact
+        run: cp amo amo-nano-linux-amd64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: amo-nano-linux-amd64
+          path: amo-nano-linux-amd64
+          if-no-files-found: error
+
+  arm64-android:
+    name: arm64-android (Android aarch64, NDK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Install native build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xz-utils unzip patch make g++ python3
+      - name: Cache Android NDK
+        id: ndk-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/android-ndk
+          key: android-ndk-${{ env.NDK_VERSION }}-linux-v1
+      - name: Download Android NDK
+        if: steps.ndk-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/android-ndk"
+          curl -fsSL "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip" \
+            -o "$RUNNER_TEMP/android-ndk.zip"
+          unzip -q "$RUNNER_TEMP/android-ndk.zip" -d "$RUNNER_TEMP/android-ndk"
+      - name: Download Node.js source
+        run: |
+          mkdir -p "$RUNNER_TEMP/node-src"
+          curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}.tar.xz" \
+            -o "$RUNNER_TEMP/node.tar.xz"
+          tar -xJf "$RUNNER_TEMP/node.tar.xz" -C "$RUNNER_TEMP/node-src"
+      - name: Cross-compile Node.js with Android NDK (aarch64-linux-android, API 24)
+        run: |
+          set -e
+          cd "$RUNNER_TEMP/node-src/node-v${NODE_VERSION}"
+          ./android-configure patch || true
+          ./android-configure "$RUNNER_TEMP/android-ndk/android-ndk-${NDK_VERSION}" 24 arm64
+          make -j4
+          file out/Release/node
+          file out/Release/node | grep -q 'ARM aarch64'
+      - name: Build (esbuild + Node SEA + postject) with Android base runtime
+        env:
+          AMO_NODE_BASE: ${{ runner.temp }}/node-src/node-v${{ env.NODE_VERSION }}/out/Release/node
+          AMO_TARGET_ARCH: arm64-android
+        run: npm run build
+      - name: Verify binary architecture
+        run: |
+          file amo
+          file amo | grep -q 'ARM aarch64'
+      - name: Prepare artifact
+        run: cp amo amo-nano-android-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: amo-nano-android-arm64
+          path: amo-nano-android-arm64
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs: [arm64, arm64-android, amd64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Verify all three binaries are present
+        run: |
+          set -e
+          ls -lh artifacts
+          test -s artifacts/amo-nano-linux-arm64
+          test -s artifacts/amo-nano-linux-amd64
+          test -s artifacts/amo-nano-android-arm64
+      - name: Create GitHub Release and attach binaries
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v1.0.${{ github.run_number }}
+        run: |
+          set -e
+          gh release create "$TAG" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "amo-nano ${TAG}" \
+            --generate-notes \
+            artifacts/amo-nano-linux-arm64 \
+            artifacts/amo-nano-android-arm64 \
+            artifacts/amo-nano-linux-amd64

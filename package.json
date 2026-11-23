@@ -1,0 +1,22 @@
+{
+  "name": "amo-editor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AMO - a self-contained professional terminal code editor for Termux",
+  "bin": {
+    "amo": "./amo"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/*.test.js",
+    "amo": "./amo"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "postject": "^1.0.0-alpha.6"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
